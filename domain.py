@@ -1,5 +1,6 @@
 import gym
 import pybulletgym
+import numpy as np
 
 
 class Domain:
@@ -49,7 +50,8 @@ if __name__ == '__main__':
     print(f'initial state: {s}')
     for t in range(1000):
         d.env.render()
-        u = d.random_action()
+        u = np.random.choice([-1, 1], 1).tolist()
+        # u = d.random_action()
         s, r = d.f(u)
         print(r)
         if d.is_final_state():
