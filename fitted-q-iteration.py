@@ -11,6 +11,24 @@ epsilon = 0.1
 action_space = [-1, 1]
 
 
+class Policy:
+    """
+    Action space is discrete
+    """
+    def __init__(self, Q, action_space):
+        self.Q = Q
+        self.action_space = action_space
+
+    def __call__(self, x):
+        values = []
+        for u in self.action_space:
+            input = np.concatenate((x, [u]))
+            values.append(self.Q.predict([input]))
+
+        max_index = np.argmax(values).item()
+        return [self.action_space[max_index]]
+
+
 def max_of_Q(Q, x):
     """
     Return the maxQ(x,u') term
@@ -28,7 +46,7 @@ def build_trajectory(size):
     d = Domain()
     x = d.env.reset()
     for i in range(size):
-        u = np.random.choice([-1, 1], 1).tolist()
+        u = np.random.choice(action_space, 1).tolist()
         new_x, r = d.f(u)
         F.append([x, u, r, new_x])
         if d.is_final_state():
@@ -78,10 +96,9 @@ def fitted_q_iteration(F, N=100, n_min=2, M=50):
 
 if __name__ == '__main__':
     F = utils.build_trajectory(10)
-    # print(len(F))
 
     Q_list = fitted_q_iteration(F, N=50)
-    print('Fiited-Q-Iteration over')
+    print('Fitted-Q-Iteration over')
 
     J = []
     for i in range(50):
@@ -89,7 +106,7 @@ if __name__ == '__main__':
 
         Q = Q_list[i]
         j_list = []
-        mu = utils.Policy(Q, action_space=[-1, 1])
+        mu = Policy(Q, action_space=[-1, 1])
         for n_samples in range(5):
             j_list.append(utils.J(mu, 20))
 

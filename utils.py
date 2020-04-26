@@ -5,24 +5,6 @@ from domain import Domain
 gamma = 0.9
 
 
-class Policy:
-    """
-    Action space is discrete
-    """
-    def __init__(self, Q, action_space):
-        self.Q = Q
-        self.action_space = action_space
-
-    def __call__(self, x):
-        values = []
-        for u in self.action_space:
-            input = np.concatenate((x, [u]))
-            values.append(self.Q.predict([input]))
-
-        max_index = np.argmax(values).item()
-        return [self.action_space[max_index]]
-
-
 def J(policy, N, d=None, x=None):
     """
     Compute the expected return of a policy for a state
