@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from domain import Domain
 
-gamma = 0.9
+gamma = 0.95
 
 
 def J(policy, N, d=None, x=None):
@@ -38,11 +38,12 @@ def build_trajectory(size):
         else:
             x = new_x
 
+    np.random.shuffle(F)
     return F
 
 
 if __name__ == '__main__':
-    # policy return rndomly -1 or 1
+    # policy return randomly -1 or 1
     mu = lambda x: np.random.choice([-1, 1], 1).tolist()
 
     # list of expected return

@@ -28,7 +28,7 @@ class Domain:
             The state isn't taking in consideration since
             the current state is saved in the library
         """
-        state, reward, self.done, _ = self.env.step(action)
+        state, reward, self.done, _ = self.env.step([action])
         return state, reward
 
     def is_final_state(self):
@@ -48,12 +48,12 @@ if __name__ == '__main__':
     d = Domain()
     s = d.initial_state()
     print(f'initial state: {s}')
-    for t in range(1000):
+    for t in range(1):
         d.env.render()
         u = np.random.choice([-1, 1], 1).tolist()
         # u = d.random_action()
         s, r = d.f(u)
-        print(r)
+        print(s)
         if d.is_final_state():
             print('final state reached')
             break
