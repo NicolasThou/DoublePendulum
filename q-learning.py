@@ -28,28 +28,6 @@ def NeuralNetwork():
     return net
 
 
-def delta(step, model):
-    """
-    Compute the temporal difference
-    """
-    if model is None:
-        td = step[2]
-    else:
-        predictions = []
-        for u in action_space:
-            x = np.concatenate((step[3], [u]))
-            x = np.array([x])
-            p = model.predict(x).item()
-            predictions.append(p)
-
-        max_prediction = np.max(predictions)
-        x = np.concatenate((step[0], step[1]))
-        x = np.array([x])
-        td = step[2] + utils.gamma * max_prediction - model.predict(x).item()
-
-    return td
-
-
 def build_training_set_parametric_Q_Learning(F, model_build):
     """
     Build the training set for training the parametric
@@ -65,7 +43,7 @@ def build_training_set_parametric_Q_Learning(F, model_build):
             # case where the state t+1 is a final state
             o = step[2]
         else:
-            o = delta(step[:-1], model_build)  # TODO : is this really Parametric Q-Learning ?!
+            o = utils.delta(step[:-1], model_build, action_space)  # TODO : is this really Parametric Q-Learning ?!
 
         # add the new sample in the training set
         inputs.append(i)
@@ -74,31 +52,6 @@ def build_training_set_parametric_Q_Learning(F, model_build):
     inputs = np.array(inputs)
     outputs = np.array(outputs)
     return inputs, outputs
-
-
-def td_error(model):
-    """
-    Computes an estimation of TD-error for a model
-    """
-    d = Domain()
-    s = d.initial_state()
-    deltas = []
-
-    # expectation over 20 trials
-    for i in range(20):
-        # sample random action to computes a four-tuple
-        u = d.random_action()
-        next_s, r = d.f(u)
-
-        td = delta([s, u, r, next_s], model)
-        deltas.append(td)
-
-        if d.is_final_state():
-            s = d.initial_state()
-        else:
-            s = next_s
-
-    return np.mean(deltas)
 
 
 def Q_learning_parametric_function(F, N):
@@ -132,7 +85,7 @@ def Q_learning_parametric_function(F, N):
         loss = loss.history['loss']
 
         # computes for each iteration the delta with the updated model
-        d = td_error(model_Q_learning)
+        d = utils.td_error(model_Q_learning, action_space)
         print(f'delta = {d}')
         temporal_difference.append(d)
 

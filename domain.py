@@ -1,6 +1,8 @@
 import gym
+import time
 import pybulletgym
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class Domain:
@@ -46,14 +48,14 @@ class Domain:
 
 if __name__ == '__main__':
     d = Domain()
+    d.env.render()
     s = d.initial_state()
-    print(f'initial state: {s}')
-    for t in range(1):
-        d.env.render()
-        u = np.random.choice([-1, 1], 1).tolist()
-        # u = d.random_action()
-        s, r = d.f(u)
-        print(s)
+    while True:
+        # u = np.random.choice([-1, 1], 1).tolist()
+        u = d.random_action()
+        next_s, r = d.f(u)
+        time.sleep(0.01)
         if d.is_final_state():
-            print('final state reached')
-            break
+            s = d.initial_state()
+        else:
+            s = next_s

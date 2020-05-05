@@ -28,50 +28,6 @@ def NeuralNetwork():
     return net
 
 
-def delta(step, model):
-    """
-    Compute the temporal difference
-    """
-    predictions = []
-    for u in action_space:
-        x = np.concatenate((step[3], [u]))
-        x = torch.tensor(x, dtype=torch.float32)
-        p = model(x)
-        p = p.detach().numpy().item()
-        predictions.append(p)
-
-    max_prediction = np.max(predictions)
-    x = np.concatenate((step[0], step[1]))
-    x = torch.tensor(x, dtype=torch.float32)
-    td = step[2] + utils.gamma * max_prediction - model(x).item()
-
-    return td
-
-
-def td_error(model):
-    """
-    Computes an estimation of TD-error for a model
-    """
-    d = Domain()
-    s = d.initial_state()
-    deltas = []
-
-    # expectation over 20 trials
-    for i in range(20):
-        u = d.random_action()
-        next_s, r = d.f(u)
-
-        td = delta([s, u, r, next_s], model)
-        deltas.append(td)
-
-        if d.is_final_state():
-            s = d.initial_state()
-        else:
-            s = next_s
-
-    return np.mean(deltas)
-
-
 def Q_learning_parametric_function(F, N):
     """
     new_baseline_model() use a customize loss which return only the y_pred.
@@ -122,7 +78,7 @@ def Q_learning_parametric_function(F, N):
             optimizer.step()
 
         # computes for each iteration the delta with the updated model
-        d = td_error(model_Q_learning)
+        d = utils.td_error(model_Q_learning, action_space, nb_approximations=20)
         print(f'delta = {d}')
         temporal_difference.append(d)
         training_loss.append(np.mean(l))

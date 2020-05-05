@@ -1,4 +1,5 @@
 from sklearn.ensemble import ExtraTreesRegressor
+from joblib import dump, load
 import numpy as np
 from matplotlib import pyplot as plt
 import utils
@@ -72,34 +73,6 @@ def discretize_space(space_min, space_max, nb_values):
     return space
 
 
-def max_of_Q(Q, x):
-    """
-    Return the maxQ(x,u') term
-    """
-    values = []
-    for u in action_space:
-        input = np.concatenate((x, [u]))
-        values.append(Q.predict([input]))
-
-    return np.max(values)
-
-
-def build_trajectory(size):
-    F = []
-    d = Domain()
-    x = d.env.reset()
-    for i in range(size):
-        u = np.random.choice(action_space, 1).tolist()
-        new_x, r = d.f(u)
-        F.append([x, u, r, new_x])
-        if d.is_final_state():
-            x = d.env.reset()
-        else:
-            x = new_x
-
-    return F
-
-
 def build_training_set(Q, F):
     """
     Build the training set using the Q-function and the trajectory F
@@ -108,9 +81,19 @@ def build_training_set(Q, F):
     X = []
     y = []
 
-    for x, u, r, next_x in F:
+    for x, u, r, next_x, is_final_state in F:
+
+        if not is_final_state:
+            # extracting maxQ(x',u')
+            predictions = []
+            for action in action_space:
+                input = np.concatenate((next_x, [action]))
+                predictions.append(Q.predict([input]))
+            y.append(r + utils.gamma * np.max(predictions))
+        else:
+            y.append(r)
+
         X.append(np.concatenate((x, u)))
-        y.append(r + utils.gamma*max_of_Q(Q, next_x))
 
     return X, y
 
@@ -123,6 +106,7 @@ def fitted_q_iteration(F, N=100, n_min=2, M=50):
     """
     Q_list = []
     loss = []
+    td_loss = []
 
     # Q_0 = 0 everywhere
     Q = ExtraTreesRegressor()
@@ -136,15 +120,15 @@ def fitted_q_iteration(F, N=100, n_min=2, M=50):
         Q.fit(X, y)
         Q_list.append(Q)
         loss.append(Q.oob_score_)
+        td_loss.append(utils.td_error(Q, action_space))
 
-    return Q_list, loss
+    return Q_list, loss, td_loss
 
 
 if __name__ == '__main__':
-    F = utils.build_trajectory(1000)
+    F = utils.build_trajectory(10000, from_action_space=True, action_space=action_space)
 
-    Q_list, loss = fitted_q_iteration(F, N=50)
-    print('Fitted-Q-Iteration over')
+    Q_list, loss, td_loss = fitted_q_iteration(F, N=50)
 
     # J = []
     # for i in range(50):
@@ -158,11 +142,5 @@ if __name__ == '__main__':
     #
     #     J.append(np.mean(j_list))
 
-    plt.plot(range(len(loss)), loss)
+    plt.plot(range(len(td_loss)), td_loss)
     plt.show()
-
-    # d = Domain()
-    # s = d.initial_state()
-    # policy = MeanPolicy(Q_list[-1], action_space, 0.05)
-    # action = policy(s)
-    # print(action)

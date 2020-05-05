@@ -48,6 +48,57 @@ def build_trajectory(size, from_action_space=False, action_space=None):
     return T
 
 
+def delta(step, model, action_space):
+    """
+    Compute the temporal difference
+    """
+    if model is None:
+        td = step[2]
+    else:
+        predictions = []
+        for u in action_space:
+            x = np.concatenate((step[3], [u]))
+            x = np.array([x])
+            if hasattr(model, 'predict'):
+                p = model.predict(x).item()
+            else:
+                p = model(x).item()
+            predictions.append(p)
+
+        max_prediction = np.max(predictions)
+        x = np.concatenate((step[0], step[1]))
+        x = np.array([x])
+        if hasattr(model, 'predict'):
+            td = step[2] + gamma * max_prediction - model.predict(x).item()
+        else:
+            td = step[2] + gamma * max_prediction - model(x).item()
+
+    return td
+
+
+def td_error(model, action_space, nb_approximations=20):
+    """
+    Computes an estimation of TD-error for a model
+    """
+    d = Domain()
+    s = d.initial_state()
+    deltas = []
+
+    for i in range(nb_approximations):
+        u = d.random_action()
+        next_s, r = d.f(u)
+
+        td = delta([s, u, r, next_s], model, action_space)
+        deltas.append(td)
+
+        if d.is_final_state():
+            s = d.initial_state()
+        else:
+            s = next_s
+
+    return np.mean(deltas)
+
+
 if __name__ == '__main__':
     # policy return randomly -1 or 1
     mu = lambda x: np.random.choice([-1, 1], 1).tolist()
@@ -55,9 +106,9 @@ if __name__ == '__main__':
     # list of expected return
 
     j = []
-    for N in range(100):
+    for N in range(1):
         j.append(J(mu, 50))
 
     # display expected return
-    plt.plot(range(100), j)
+    plt.plot(range(len(j)), j)
     plt.show()
