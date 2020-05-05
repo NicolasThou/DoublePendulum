@@ -4,6 +4,7 @@ from torch import optim
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from joblib import dump, load
 import utils
 from domain import Domain
 
@@ -16,11 +17,11 @@ class ActorCriticDiscrete:
     Class implementation of Actor-Critic policy search technique
     with discrete action space
     """
-    def __init__(self, in_actor, out_actor, in_critic):
+    def __init__(self, out_actor):
         # actor network
         self.actor = nn.Sequential(
             nn.Dropout(0.4),
-            nn.Linear(in_actor, 10),
+            nn.Linear(9, 10),
             nn.ReLU(),
             nn.Dropout(0.4),
             nn.Linear(10, out_actor),
@@ -30,7 +31,7 @@ class ActorCriticDiscrete:
         # critic network
         self.critic = nn.Sequential(
             nn.Dropout(0.4),
-            nn.Linear(in_critic, 10),
+            nn.Linear(9, 10),
             nn.ReLU(),
             nn.Dropout(0.4),
             nn.Linear(10, 1)
@@ -126,13 +127,9 @@ class ActorCriticDiscrete:
 
 
 if __name__ == '__main__':
-    episode = 600
+    episode = 1000
 
-    actor_critic = ActorCriticDiscrete(in_actor=9, out_actor=len(action_space), in_critic=9)
+    actor_critic = ActorCriticDiscrete(out_actor=len(action_space))
 
     a_losses, c_losses, r = actor_critic.train(episode)
-
-    plt.plot(range(len(a_losses)), a_losses)
-    plt.plot(range(len(c_losses)), c_losses)
-    # plt.plot(range(len(r)), r)
-    plt.show()
+    dump(actor_critic, 'discrete_actor_critic.joblib')

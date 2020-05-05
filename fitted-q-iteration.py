@@ -126,21 +126,27 @@ def fitted_q_iteration(F, N=100, n_min=2, M=50):
 
 
 if __name__ == '__main__':
-    F = utils.build_trajectory(10000, from_action_space=True, action_space=action_space)
-
-    Q_list, loss, td_loss = fitted_q_iteration(F, N=50)
-
-    # J = []
-    # for i in range(50):
-    #     print(i)
+    # F = utils.build_trajectory(10000, from_action_space=True, action_space=action_space)
     #
-    #     Q = Q_list[i]
-    #     j_list = []
-    #     mu = Policy(Q, action_space=[-1, 1])
-    #     for n_samples in range(5):
-    #         j_list.append(utils.J(mu, 20))
+    # Q_list, loss, td_loss = fitted_q_iteration(F, N=50)
     #
-    #     J.append(np.mean(j_list))
+    # plt.plot(range(len(td_loss)), td_loss)
+    # plt.show()
 
-    plt.plot(range(len(td_loss)), td_loss)
+    Q_list = load('trees 6 action values.joblib')
+    J = []
+    for i in range(min(50, len(Q_list))):
+        print(i)
+
+        Q = Q_list[i]
+        j_list = []
+        mu = Policy(Q, action_space=action_space)
+        for n_samples in range(5):
+            j_list.append(utils.J(mu, 20))
+
+        J.append(np.mean(j_list))
+
+    plt.plot(range(len(J)), J)
+    plt.xlabel('N')
+    plt.ylabel('$J^{\mu}$')
     plt.show()
