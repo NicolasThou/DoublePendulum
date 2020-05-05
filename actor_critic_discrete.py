@@ -60,12 +60,12 @@ class ActorCriticDiscrete:
         actor_losses = []
         critic_losses = []
         rewards = []
+
         d = Domain()
         for e in range(episode):
             transitions = []
             log_probs = []
-            advantages = []
-            rew = 0
+            values = []
 
             s = d.initial_state()
             while not d.is_final_state():
@@ -75,50 +75,64 @@ class ActorCriticDiscrete:
                 idx = torch.argmax(p).detach().numpy().item()
                 u = action_space[idx]
 
-                # save probability for -log
-                log_probs.append(torch.log(p[idx]))
-
                 # apply the action and observe next state and reward
                 next_s, r = d.f(u)
-
                 transitions.append([s, u, r, next_s])
+
+                # save log probability
+                log_probs.append(torch.log(p[idx]))
+
+                value = self.critic(torch.tensor(s, dtype=torch.float32))
+                values.append(value)
+
+                # keep track of next state
                 s = next_s
-                rew += r
 
-                V = self.critic(torch.tensor(next_s, dtype=torch.float32))
-                V = V.detach().numpy().item()
-                y = r + utils.gamma*V
+            # save the sum of episode rewards
+            episode_rewards = np.array(transitions)
+            episode_rewards = episode_rewards[:, 2].tolist()
+            rewards.append(sum(episode_rewards))
 
-                advantages.append((y - self.critic(torch.tensor(s, dtype=torch.float32)))**2)
-                # print(advantages[-1])
+            R = 0
+            A = torch.zeros(len(values))
+            for t in reversed(range(len(transitions))):
+                R = transitions[t][2] + utils.gamma*R
+                A[t] = R
 
-                # update the critic network using TD error
-                critic_optimizer.zero_grad()
-                critic_loss = (y - self.critic(torch.tensor(s, dtype=torch.float32)))**2
-                critic_losses.append(critic_loss.item())
-                critic_loss.backward()
-                critic_optimizer.step()
+            # advantage
+            A = A - torch.cat(values)
 
-            rewards.append(rew)
+            # actor and critic loss
+            critic_loss = (A**2).mean()
+            A = A.detach()
+            log_probs = torch.stack(log_probs)
+            actor_loss = (-log_probs*A).mean()
 
-            # actor loss and update
+            # update the critic network
+            critic_optimizer.zero_grad()
+            critic_loss.backward()
+            critic_optimizer.step()
+
+            # update tha actor network
             actor_optimizer.zero_grad()
-            actor_loss = (-sum(log_probs)).mean()
-            actor_losses.append((actor_loss.item()))
             actor_loss.backward()
             actor_optimizer.step()
+
+            # save the loss
+            actor_losses.append(actor_loss.item())
+            critic_losses.append(critic_loss.item())
 
         return actor_losses, critic_losses, rewards
 
 
 if __name__ == '__main__':
-    episode = 1000
+    episode = 600
 
     actor_critic = ActorCriticDiscrete(in_actor=9, out_actor=len(action_space), in_critic=9)
 
     a_losses, c_losses, r = actor_critic.train(episode)
 
     plt.plot(range(len(a_losses)), a_losses)
-    # plt.plot(range(len(c_losses)), c_losses)
-    # plt.plot(range(len(r), r)
+    plt.plot(range(len(c_losses)), c_losses)
+    # plt.plot(range(len(r)), r)
     plt.show()

@@ -11,7 +11,7 @@ from domain import Domain
 
 class ActorCriticContinuous:
     """
-    Class implementation of TD Advantage Actor-Critic policy search technique
+    Class implementation of Advantage Actor-Critic policy search technique
     with continuous action space
     """
     def __init__(self, in_actor, in_critic):
@@ -58,15 +58,16 @@ class ActorCriticContinuous:
         actor_losses = []
         critic_losses = []
         rewards = []
+
         d = Domain()
         for e in range(episode):
-            s = d.initial_state()
+            transitions = []
+            log_probs = []
+            values = []
 
-            a_loss = []
-            c_loss = []
-            rew = 0
+            s = d.initial_state()
             while not d.is_final_state():
-                # predict a distribution
+                # predict the distribution parameters
                 mu, sigma = self.get_distribution(s)
 
                 # sample an action from distribution
@@ -78,52 +79,63 @@ class ActorCriticContinuous:
 
                 # apply the action and observe next state and reward
                 next_s, r = d.f(u)
-                rew += r
+                transitions.append([s, u, r, next_s])
 
-                # TD target
-                V = self.critic(torch.tensor(next_s, dtype=torch.float32))
-                V.detach().numpy().item()
-                y = r + utils.gamma*V
+                # value predicted by the critic network
+                value = self.critic(torch.tensor(next_s, dtype=torch.float32))
+                values.append(value)
 
-                # advantage
-                j = self.critic(torch.tensor(s, dtype=torch.float32))
-                delta = (y - j)**2
+                # log used in actor loss
+                log_prob = -((u - mu) ** 2) / (2 * sigma ** 2) - torch.log(sigma * math.sqrt(2 * math.pi))
+                log_probs.append(log_prob)
 
-                # critic loss
-                critic_loss = delta
-                print(delta)
-                c_loss.append(critic_loss.item())
+                # keep track of next state
+                s = next_s
 
-                # update the critic network
-                critic_optimizer.zero_grad()
-                critic_loss.backward()
-                critic_optimizer.step()
+            episode_rewards = np.array(transitions)
+            episode_rewards = episode_rewards[:, 2].tolist()
+            rewards.append(sum(episode_rewards))
 
-                # actor loss
-                log_prob = -((u - mu)**2)/(2*sigma**2) - torch.log(sigma*math.sqrt(2*math.pi))
-                actor_loss = -log_prob*delta.detach()
-                a_loss.append(actor_loss.item())
+            R = 0
+            A = torch.zeros(len(values))
+            for t in reversed(range(len(transitions))):
+                R = transitions[t][2] + utils.gamma * R
+                A[t] = R
 
-                # actor update
-                actor_optimizer.zero_grad()
-                actor_loss.backward()
-                actor_optimizer.step()
+            # advantage
+            A = A - torch.cat(values)
 
-            actor_losses.append(np.mean(a_loss))
-            critic_losses.append(np.mean(c_loss))
-            rewards.append(rew)
+            # actor and critic loss
+            critic_loss = (A**2).mean()
+            A = A.detach()
+            log_probs = torch.stack(log_probs)
+            actor_loss = (-log_probs*A).mean()
+
+            # critic update
+            critic_optimizer.zero_grad()
+            critic_loss.backward()
+            critic_optimizer.step()
+
+            # actor update
+            actor_optimizer.zero_grad()
+            actor_loss.backward()
+            actor_optimizer.step()
+
+            # save the loss
+            actor_losses.append(actor_loss.item())
+            critic_losses.append(critic_loss.item())
 
         return actor_losses, critic_losses, rewards
 
 
 if __name__ == '__main__':
-    episode = 1000
+    episode = 200
 
     actor_critic = ActorCriticContinuous(in_actor=9, in_critic=9)
 
     a_losses, c_losses, rewards = actor_critic.train(episode)
 
-    # plt.plot(range(episode), a_losses)
+    plt.plot(range(episode), a_losses)
     plt.plot(range(episode), c_losses)
     # plt.plot(range(episode), rewards)
     plt.show()

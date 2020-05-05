@@ -25,21 +25,27 @@ def J(policy, N, d=None, x=None):
             return r + gamma*J(policy, N-1, d, new_x)
 
 
-def build_trajectory(size):
-    F = []
+def build_trajectory(size, from_action_space=False, action_space=None):
+    T= []
     d = Domain()
-    x = d.env.reset()
-    for i in range(size):
-        u = d.random_action()
+    x = d.initial_state()
+    while len(T) < size:
+        if not from_action_space:
+            u = d.random_action()
+        else:
+            # choose an action from discrete action space
+            u = np.random.choice(action_space, size=1)
+
         new_x, r = d.f(u)
-        F.append([x, u, r, new_x])
+        T.append([x, u, r, new_x, d.is_final_state()])
+
         if d.is_final_state():
-            x = d.env.reset()
+            x = d.initial_state()
         else:
             x = new_x
 
-    np.random.shuffle(F)
-    return F
+    np.random.shuffle(T)
+    return T
 
 
 if __name__ == '__main__':
