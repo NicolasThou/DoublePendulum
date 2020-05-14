@@ -1,0 +1,11 @@
+*.xml
+*.iml
+*.pyc
+*.ipynb
+*.png
+*.joblib
+pybulletgym/
+runs/
+pybullet-gym/
+move37/
+*.pdf
