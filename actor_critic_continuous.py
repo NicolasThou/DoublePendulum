@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 from joblib import dump, load
+import time
 import utils
 from domain import Domain
 
@@ -35,6 +36,24 @@ class ActorCriticContinuous:
             nn.Linear(10, 1)
         )
 
+    def __call__(self, x):
+        x = torch.tensor(x, dtype=torch.float32)
+
+        # produce the Gaussian distribution parameters by the actor network
+        mu, sigma = self.actor(x)
+        mu, sigma = torch.tanh(mu), F.softplus(sigma) + 1e-05
+
+        # draw an action from this distribution
+        u = torch.randn(1) * sigma + mu
+        u = u.detach().numpy()
+
+        # clip the action si it range in (-1,1)
+        u = np.clip(u, a_min=-1, a_max=1).item()
+        if not np.isfinite(u):
+            return np.clip(np.random.normal(), a_min=-1, a_max=1).item()
+        else:
+            return u
+
     def get_distribution(self, s):
         """
         Sample an action using the policy approximation (actor)
@@ -62,6 +81,7 @@ class ActorCriticContinuous:
 
         d = Domain()
         for e in range(episode):
+            print(f'========== episode {e} ==========')
             transitions = []
             log_probs = []
             values = []
@@ -133,14 +153,21 @@ class ActorCriticContinuous:
             # save the loss
             actor_losses.append(actor_loss.item())
             critic_losses.append(critic_loss.item())
+            print(f' critic loss : {critic_losses[-1]} | actor loss : {actor_losses[-1]}')
 
         return actor_losses, critic_losses, rewards
 
 
 if __name__ == '__main__':
-    episode = 1000
-
-    actor_critic = ActorCriticContinuous()
-
-    a_losses, c_losses, rewards = actor_critic.train(episode)
-    dump(actor_critic, 'continuous_actor_critic.joblib')
+    model = load('models/continuous_actor_critic.joblib')
+    d = Domain()
+    d.env.render()
+    s = d.initial_state()
+    while True:
+        u = model(s)
+        next_s, r = d.f(u)
+        time.sleep(0.01)
+        if d.is_final_state():
+            s = d.initial_state()
+        else:
+            s = next_s

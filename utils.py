@@ -12,12 +12,11 @@ def J(policy, N, d=None, x=None):
     if N == 0:
         return 0
     else:
-        if d is not None:
+        if d is not None:  # if domain is initialized use it
             u = policy(x)
             new_x, r = d.f(u)
             return r + gamma*J(policy, N-1, d, new_x)
-        else:
-            # else we create it
+        else:  # else we create it
             d = Domain()
             x = d.initial_state()
             u = policy(x)
@@ -26,17 +25,21 @@ def J(policy, N, d=None, x=None):
 
 
 def build_trajectory(size, from_action_space=False, action_space=None):
+    """
+    Build a trajctory of four-tuples using ranfom action
+    """
     T= []
     d = Domain()
     x = d.initial_state()
     while len(T) < size:
-        if not from_action_space:
+        if not from_action_space:  # continuous action in (-1,1)
             u = d.random_action()
-        else:
-            # choose an action from discrete action space
+        else:  # choose an action from a custom discrete action space
             u = np.random.choice(action_space, size=1)
 
         new_x, r = d.f(u)
+
+        # add the four-tuple to the trajectory
         T.append([x, u, r, new_x, d.is_final_state()])
 
         if d.is_final_state():
@@ -44,6 +47,7 @@ def build_trajectory(size, from_action_space=False, action_space=None):
         else:
             x = new_x
 
+    # shuffle the trajectory
     np.random.shuffle(T)
     return T
 
@@ -51,12 +55,13 @@ def build_trajectory(size, from_action_space=False, action_space=None):
 def delta(step, model, action_space):
     """
     Compute the temporal difference
+    The delta make sense only in discrete action space cases
     """
     if model is None:
         td = step[2]
     else:
         predictions = []
-        for u in action_space:
+        for u in action_space:  # compute a prediction for each action
             x = np.concatenate((step[3], [u]))
             x = np.array([x])
             if hasattr(model, 'predict'):
@@ -97,18 +102,3 @@ def td_error(model, action_space, nb_approximations=20):
             s = next_s
 
     return np.mean(deltas)
-
-
-if __name__ == '__main__':
-    # policy return randomly -1 or 1
-    mu = lambda x: np.random.choice([-1, 1], 1).tolist()
-
-    # list of expected return
-
-    j = []
-    for N in range(1):
-        j.append(J(mu, 50))
-
-    # display expected return
-    plt.plot(range(len(j)), j)
-    plt.show()

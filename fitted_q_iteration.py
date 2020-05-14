@@ -6,10 +6,6 @@ import utils
 from domain import Domain
 
 
-# discretization of the action space
-action_space = [-1, -0.5, -0.25, 0.25, 0.5, 1]
-
-
 class Policy:
     """
     Action space is discrete
@@ -49,31 +45,17 @@ class MeanPolicy:
             input = np.concatenate((x, [u]))
             weights.append(self.Q.predict([input]).item())
 
-        # normalize so the sum equal 1
-        weights = sigmoid(weights, self.temperature)
+        # normalize so the sum equal 1 = sigmoid
+        denominator = np.exp(-np.array(weights)/self.temperature)
+        denominator = np.sum(denominator)
+        weights = (np.exp(-np.array(weights)/self.temperature)/denominator).tolist()
 
         # take the weighted average of actions
         action = np.average(self.action_space, weights=weights)
         return action
 
 
-def sigmoid(l, t=1.0):
-    l = np.array(l)
-    denominator = np.exp(-l/t)
-    denominator = np.sum(denominator)
-    return (np.exp(-l/t)/denominator).tolist()
-
-
-def discretize_space(space_min, space_max, nb_values):
-    space = []
-    cst = (space_max - space_min) / (nb_values - 1)
-    for k in range(nb_values - 1):
-        space.append(space_min + k * cst)
-    space.append(space_max)
-    return space
-
-
-def build_training_set(Q, F):
+def build_training_set(Q, F, action_space):
     """
     Build the training set using the Q-function and the trajectory F
     """
@@ -98,7 +80,7 @@ def build_training_set(Q, F):
     return X, y
 
 
-def fitted_q_iteration(F, N=100, n_min=2, M=50):
+def fitted_q_iteration(F, action_space, N=100, n_min=2, M=50):
     """
     Apply the Fitted-Q-Iteration algorithm with Extra-Tree
     (discrete action space !)
@@ -115,38 +97,31 @@ def fitted_q_iteration(F, N=100, n_min=2, M=50):
 
     for n in range(N):
         print(f'n = {n+1}')
-        X, y = build_training_set(Q_list[-1], F)
+        X, y = build_training_set(Q_list[-1], F, action_space)
         Q = ExtraTreesRegressor(n_estimators=M, min_samples_split=n_min, oob_score=True, bootstrap=True)
         Q.fit(X, y)
         Q_list.append(Q)
         loss.append(Q.oob_score_)
         td_loss.append(utils.td_error(Q, action_space))
+        print(f'loss : {loss[-1]} | td error : {td_loss[-1]}')
 
     return Q_list, loss, td_loss
 
 
+def train_ExtraTree(action_space):
+    F = utils.build_trajectory(10000, from_action_space=True, action_space=action_space)
+    Q_list, loss, td_loss = fitted_q_iteration(F, action_space, N=50)
+    return Q_list[-1]
+
+
 if __name__ == '__main__':
-    # F = utils.build_trajectory(10000, from_action_space=True, action_space=action_space)
-    #
-    # Q_list, loss, td_loss = fitted_q_iteration(F, N=50)
-    #
-    # plt.plot(range(len(td_loss)), td_loss)
-    # plt.show()
+    # load a model and create a policy from it
+    # !!! the action space used has to match the action space used for the training !!!
+    model = load('models/tree 6-dimensional.joblib')
+    mu = Policy(model, action_space=[-1, -0.5, -0.25, 0.25, 0.5, 1])
 
-    Q_list = load('trees 6 action values.joblib')
-    J = []
-    for i in range(min(50, len(Q_list))):
-        print(i)
+    j_list = []
+    for i in range(1000):  # compute 1000 episode to have the expected return as an average
+        j_list.append(utils.J(mu, 100))
 
-        Q = Q_list[i]
-        j_list = []
-        mu = Policy(Q, action_space=action_space)
-        for n_samples in range(5):
-            j_list.append(utils.J(mu, 20))
-
-        J.append(np.mean(j_list))
-
-    plt.plot(range(len(J)), J)
-    plt.xlabel('N')
-    plt.ylabel('$J^{\mu}$')
-    plt.show()
+    print(f'Expected return of Extra-Tree : {np.mean(j_list)}')

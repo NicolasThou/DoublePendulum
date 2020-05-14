@@ -1,8 +1,5 @@
 import gym
 import time
-import pybulletgym
-import numpy as np
-import matplotlib.pyplot as plt
 
 
 class Domain:
@@ -44,18 +41,3 @@ class Domain:
         Return a random action
         """
         return self.env.action_space.sample()
-
-
-if __name__ == '__main__':
-    d = Domain()
-    d.env.render()
-    s = d.initial_state()
-    while True:
-        # u = np.random.choice([-1, 1], 1).tolist()
-        u = d.random_action()
-        next_s, r = d.f(u)
-        time.sleep(0.01)
-        if d.is_final_state():
-            s = d.initial_state()
-        else:
-            s = next_s
