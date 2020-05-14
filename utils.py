@@ -1,8 +1,33 @@
 import numpy as np
-from matplotlib import pyplot as plt
 from domain import Domain
 
 gamma = 0.95
+
+
+class ExtraTreePolicy:
+    """
+    Class used to build a policy from the Extra-Tree models
+    """
+    def __init__(self, model, action_space):
+        """
+        We have to precise the action space used
+        It has to be the same as the one for trainnig the model used
+        """
+        self.model = model
+        self.action_space = action_space
+
+    def __call__(self, x):
+        """
+        Return the action from action space with the highest probability
+        The distributions is predicted by the model
+        """
+        values = []
+        for u in self.action_space:
+            input = np.concatenate((x, [u]))
+            values.append(self.model.predict([input]))
+
+        max_index = np.argmax(values).item()
+        return self.action_space[max_index]
 
 
 def J(policy, N, d=None, x=None):

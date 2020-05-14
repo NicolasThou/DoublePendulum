@@ -3,10 +3,7 @@ import torch.nn as nn
 from torch import optim
 import torch.nn.functional as F
 import numpy as np
-import matplotlib.pyplot as plt
 import math
-from joblib import dump, load
-import time
 import utils
 from domain import Domain
 
@@ -156,18 +153,3 @@ class ActorCriticContinuous:
             print(f' critic loss : {critic_losses[-1]} | actor loss : {actor_losses[-1]}')
 
         return actor_losses, critic_losses, rewards
-
-
-if __name__ == '__main__':
-    model = load('models/continuous_actor_critic.joblib')
-    d = Domain()
-    d.env.render()
-    s = d.initial_state()
-    while True:
-        u = model(s)
-        next_s, r = d.f(u)
-        time.sleep(0.01)
-        if d.is_final_state():
-            s = d.initial_state()
-        else:
-            s = next_s

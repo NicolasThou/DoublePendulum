@@ -2,10 +2,6 @@ import torch
 import torch.nn as nn
 from torch import optim
 import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
-from joblib import dump, load
-import time
 import utils
 from domain import Domain
 
@@ -153,18 +149,3 @@ class ActorCriticDiscrete:
             print(f' critic loss : {critic_losses[-1]} | actor loss : {actor_losses[-1]}')
 
         return actor_losses, critic_losses, rewards
-
-
-if __name__ == '__main__':
-    model = load('models/discrete_actor_critic 2-dimensional.joblib')
-    d = Domain()
-    d.env.render()
-    s = d.initial_state()
-    while True:
-        u = model(s)
-        next_s, r = d.f(u)
-        time.sleep(0.01)
-        if d.is_final_state():
-            s = d.initial_state()
-        else:
-            s = next_s

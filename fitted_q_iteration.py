@@ -1,9 +1,6 @@
 from sklearn.ensemble import ExtraTreesRegressor
-from joblib import dump, load
 import numpy as np
-from matplotlib import pyplot as plt
 import utils
-from domain import Domain
 
 
 class Policy:
@@ -68,15 +65,16 @@ def build_training_set(Q, F, action_space):
         if not is_final_state:
             # extracting maxQ(x',u')
             predictions = []
-            for action in action_space:
+            for action in action_space:  # compute a prediction for each action
                 input = np.concatenate((next_x, [action]))
                 predictions.append(Q.predict([input]))
+
+            # add the output target
             y.append(r + utils.gamma * np.max(predictions))
         else:
             y.append(r)
 
         X.append(np.concatenate((x, u)))
-
     return X, y
 
 
@@ -96,10 +94,16 @@ def fitted_q_iteration(F, action_space, N=100, n_min=2, M=50):
     Q_list.append(Q)
 
     for n in range(N):
-        print(f'n = {n+1}')
+        print(f'========== N = {n+1} ==========')
+
+        # build the training set
         X, y = build_training_set(Q_list[-1], F, action_space)
+
+        # build and fit the model
         Q = ExtraTreesRegressor(n_estimators=M, min_samples_split=n_min, oob_score=True, bootstrap=True)
         Q.fit(X, y)
+
+        # save the model and the losses
         Q_list.append(Q)
         loss.append(Q.oob_score_)
         td_loss.append(utils.td_error(Q, action_space))
@@ -110,18 +114,5 @@ def fitted_q_iteration(F, action_space, N=100, n_min=2, M=50):
 
 def train_ExtraTree(action_space):
     F = utils.build_trajectory(10000, from_action_space=True, action_space=action_space)
-    Q_list, loss, td_loss = fitted_q_iteration(F, action_space, N=50)
+    Q_list, loss, td_loss = fitted_q_iteration(F, action_space, N=10)
     return Q_list[-1]
-
-
-if __name__ == '__main__':
-    # load a model and create a policy from it
-    # !!! the action space used has to match the action space used for the training !!!
-    model = load('models/tree 6-dimensional.joblib')
-    mu = Policy(model, action_space=[-1, -0.5, -0.25, 0.25, 0.5, 1])
-
-    j_list = []
-    for i in range(1000):  # compute 1000 episode to have the expected return as an average
-        j_list.append(utils.J(mu, 100))
-
-    print(f'Expected return of Extra-Tree : {np.mean(j_list)}')
